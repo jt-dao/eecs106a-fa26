@@ -116,7 +116,13 @@ def R3_to_so3(omega):
     omega_hat - (3,3) ndarray: the corresponding skew symmetric matrix
     """
 
-    # YOUR CODE HERE
+    omega_hat = np.array([
+        [0.0, -omega[2], omega[1]],
+        [omega[2], 0.0, -omega[0]],
+        [-omega[1], omega[0], 0.0],
+    ])
+
+    return omega_hat
 
 
 def so3_to_R3(omega_hat):
@@ -130,10 +136,10 @@ def so3_to_R3(omega_hat):
     omega - (3,) ndarray: the rotation vector
 
     """
-    # Check that the input is skew-symmetric.
-    assert np.allclose(omega_hat, -omega_hat.T)
 
-    # YOUR CODE HERE
+    omega = np.array([omega_hat[2, 1], omega_hat[0, 2], omega_hat[1, 0]])
+
+    return omega
 
 
 def axis_angle_to_SO3(omega, theta):
@@ -151,7 +157,22 @@ def axis_angle_to_SO3(omega, theta):
 
     """
 
-    # YOUR CODE HERE
+    magnitude = spl.norm(omega)
+    if magnitude < 1e-10:
+        return np.eye(3)
+
+    axis = omega / magnitude
+    angle = theta * magnitude
+    axis_hat = R3_to_so3(axis)
+
+    # rodrigues
+    rot = (
+        np.eye(3)
+        + axis_hat * np.sin(angle)
+        + np.matmul(axis_hat, axis_hat) * (1 - np.cos(angle))
+    )
+
+    return rot
 
 
 def so3_to_SO3(omega_hat, theta=1):
@@ -169,7 +190,9 @@ def so3_to_SO3(omega_hat, theta=1):
 
     """
 
-    # YOUR CODE HERE
+    rot = axis_angle_to_SO3(so3_to_R3(omega_hat), theta)
+
+    return rot
 
 
 def twist_to_se3(xi, theta=1):
@@ -186,8 +209,14 @@ def twist_to_se3(xi, theta=1):
     Note: xi need not be a unit twist! (ie it may have some displacement information embedded into it)
     """
 
-    # YOUR CODE HERE
+    v = xi[0:3]
+    omega = xi[3:6]
 
+    xi_hat = np.zeros((4, 4))
+    xi_hat[0:3, 0:3] = R3_to_so3(omega)
+    xi_hat[0:3, 3] = v
+
+    return xi_hat * theta
 
 
 def se3_to_twist(xi_hat):
@@ -201,7 +230,12 @@ def se3_to_twist(xi_hat):
     xi - (6,) ndarray: the 3D twist
     """
 
-    # YOUR CODE HERE
+    v = xi_hat[0:3, 3]
+    omega = so3_to_R3(xi_hat[0:3, 0:3])
+
+    xi = np.hstack((v, omega))
+
+    return xi
 
 
 def twist_to_SE3(xi, theta=1):
@@ -219,7 +253,25 @@ def twist_to_SE3(xi, theta=1):
 
     """
 
-    # YOUR CODE HERE
+    v = xi[0:3]
+    omega = xi[3:6]
+    magnitude = spl.norm(omega)
+
+    g = np.eye(4)
+    if magnitude < 1e-10:
+        g[0:3, 3] = v * theta
+        return g
+
+    rot = axis_angle_to_SO3(omega, theta)
+    p = (
+        np.matmul(np.eye(3) - rot, np.cross(omega, v))
+        + np.outer(omega, omega) @ v * theta
+    ) / magnitude ** 2
+
+    g[0:3, 0:3] = rot
+    g[0:3, 3] = p
+
+    return g
 
 
 def se3_to_SE3(xi_hat, theta=1):
@@ -237,7 +289,9 @@ def se3_to_SE3(xi_hat, theta=1):
 
     """
 
-    # YOUR CODE HERE
+    g = twist_to_SE3(se3_to_twist(xi_hat), theta)
+
+    return g
 
 
 def forward_kinematics(xi, theta):
@@ -253,7 +307,11 @@ def forward_kinematics(xi, theta):
     g - (4,4) ndarray: the resulting homogeneous transformation matrix
     """
 
-    # YOUR CODE HERE
+    g = np.eye(4)
+    for i in range(xi.shape[1]):
+        g = np.matmul(g, twist_to_SE3(xi[:, i], theta[i]))
+
+    return g
 
 
 # ------------------------- Other Helper Functions -----------------------------
