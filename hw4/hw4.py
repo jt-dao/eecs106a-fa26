@@ -78,8 +78,7 @@ def ur7e_fk(q):
         end-effector pose in the robot base frame.
     """
 
-    # TODO: Use your HW2 forward-kinematics function for the UR7e.
-    return ...
+    return np.matmul(forward_kinematics(UR7E_TWISTS, q), UR7E_ZERO_POSE)
 
 
 def verify_ik_solutions(desired_end_effector_pose, candidates):
@@ -108,10 +107,12 @@ def verify_ik_solutions(desired_end_effector_pose, candidates):
     """
     verified = []
 
-    # TODO: Check each candidate with forward kinematics and append valid rows.
-    ...
+    for candidate in candidates:
+        position_error, orientation_error = pose_error(ur7e_fk(candidate), desired_end_effector_pose)
+        if position_error <= POSITION_TOLERANCE and orientation_error <= ORIENTATION_TOLERANCE:
+            verified.append(candidate)
 
-    return np.array(verified)
+    return np.asarray(verified, dtype=float).reshape(-1, 6)
 
 
 def closest_solutions_by_norm(solutions, q_current):
@@ -137,8 +138,11 @@ def closest_solutions_by_norm(solutions, q_current):
         ``(closest_l1, closest_l2, closest_linf)``, where each item is one row
         from ``solutions`` with shape ``(6,)``.
     """
-    # TODO: Compute the joint motions and select one row for each norm.
-    ...
+    solutions = np.asarray(solutions)
+
+    joint_motion = solutions - q_current
+    closest_l1, closest_l2, closest_linf = (solutions[np.argmin(np.linalg.norm(joint_motion, ord=order, axis=1))] 
+                                            for order in (1, 2, np.inf))
 
     return closest_l1, closest_l2, closest_linf
 
@@ -161,10 +165,10 @@ def select_solutions_by_objective(solutions, q_current):
         ``(closest_current, closest_zero, valid)``, where the first two items
         have shape ``(6,)`` and ``valid`` has shape ``(M, 6)``.
     """
-    valid = []
-
-    # TODO: Keep solutions within the joint limits and select both objectives.
-    ...
+    solutions = np.asarray(solutions, dtype=float).reshape(-1, 6)
+    valid = solutions[np.all((solutions >= -2 * np.pi) & (solutions <= 2 * np.pi), axis=1)]
+    closest_current = closest_solutions_by_norm(valid, q_current)[1]
+    closest_zero = closest_solutions_by_norm(valid, np.zeros(6))[2]
 
     return closest_current, closest_zero, np.array(valid)
 
@@ -186,7 +190,8 @@ def solve_ur7e_pose(desired_end_effector_pose, q_current):
         ``(closest_current, closest_zero, valid)``, where the first two items
         have shape ``(6,)`` and ``valid`` has shape ``(M, 6)``.
     """
-    # TODO: Generate, verify, and select using both secondary objectives.
-    ...
+    candidates = robot.IK(desired_end_effector_pose).Q
+    verified = verify_ik_solutions(desired_end_effector_pose, candidates)
+    closest_current, closest_zero, valid = select_solutions_by_objective(verified, q_current)
 
     return closest_current, closest_zero, valid
