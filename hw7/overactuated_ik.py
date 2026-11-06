@@ -35,7 +35,7 @@ def jacobian_ik_step(
     """
 
     jacobian = spatial_jacobian(twists, theta)
-    return theta + step_size * np.linalg.pinv(jacobian) @ velocity
+    return theta + step_size * np.matmul(np.linalg.pinv(jacobian), velocity)
 
 
 def null_space_ik_step(
@@ -61,8 +61,10 @@ def null_space_ik_step(
         NumPy array with shape ``(7,)`` containing the updated joint angles.
     """
 
-    # TODO
-    return ...
+    jacobian = spatial_jacobian(PANDA_TWISTS, theta)
+    pi = np.linalg.pinv(jacobian)
+    projection = np.eye(7) - np.matmul(pi, jacobian)
+    return theta + step_size * (np.matmul(pi, velocity) + secondary_gain * np.matmul(projection, secondary_gradient))
 
 
 def joint_limit_gradient(theta):
@@ -77,5 +79,6 @@ def joint_limit_gradient(theta):
         joint-limit avoidance direction.
     """
 
-    # TODO
-    return ...
+    midpoint = (PANDA_THETA_MIN + PANDA_THETA_MAX) / 2
+    half_range = (PANDA_THETA_MAX - PANDA_THETA_MIN) / 2
+    return -(theta - midpoint) / half_range ** 2

@@ -19,14 +19,15 @@ def euler_jacobian(theta):
 
     Args:
         theta: NumPy array with shape ``(3,)`` containing angles in radians
-            for ``R = Rz(theta[0]) @ Ry(theta[1]) @ Rx(theta[2])``.
+            for ``R = matmul(matmul(Rz(theta[0]), Ry(theta[1])), Rx(theta[2]))``.
 
     Returns:
         NumPy array with shape ``(3, 3)`` mapping the angle rates to the
         spatial angular velocity.
     """
-    # TODO
-    return ...
+    twists = np.zeros((6, 3))
+    twists[3:, :] = np.array([[0., 0., 1.], [0., 1., 0.], [1., 0., 0.]])
+    return spatial_jacobian(twists, theta)[3:, :]
 
 
 def manipulability(jacobian):
@@ -39,8 +40,7 @@ def manipulability(jacobian):
         Nonnegative scalar. Include zero singular values, so a singular
         Jacobian has zero manipulability. ``np.linalg.svd`` may be useful.
     """
-    # TODO
-    return ...
+    return float(np.prod(np.linalg.svd(jacobian, compute_uv=False)))
 
 
 def main():

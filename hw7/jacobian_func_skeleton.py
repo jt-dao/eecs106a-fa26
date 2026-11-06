@@ -23,8 +23,8 @@ def adjoint(g):
         NumPy array with shape ``(6, 6)`` representing ``Ad_g``.
     """
 
-    # TODO
-    return ...
+    rotation = g[:3, :3]
+    return np.block([[rotation, np.matmul(R3_to_so3(g[:3, 3]), rotation)], [np.zeros((3, 3)), rotation]])
 
 
 def adjoint_inv(g):
@@ -38,8 +38,7 @@ def adjoint_inv(g):
         NumPy array with shape ``(6, 6)`` representing ``Ad_g^{-1}``.
     """
 
-    # TODO
-    return ...
+    return adjoint(inverse_SE3(g))
 
 
 def spatial_jacobian(twists, theta):
@@ -55,8 +54,12 @@ def spatial_jacobian(twists, theta):
         ``theta``.
     """
 
-    # TODO
-    return ...
+    jacobian = np.zeros(twists.shape, dtype=float)
+    transform = np.eye(4)
+    for i in range(twists.shape[1]):
+        jacobian[:, i] = np.matmul(adjoint(transform), twists[:, i])
+        transform = np.matmul(transform, twist_to_SE3(twists[:, i], theta[i]))
+    return jacobian
 
 
 def body_jacobian(twists, theta, g_st0):
@@ -74,8 +77,8 @@ def body_jacobian(twists, theta, g_st0):
         ``theta``.
     """
 
-    # TODO
-    return ...
+    pose = np.matmul(forward_kinematics(twists, theta), g_st0)
+    return np.matmul(adjoint_inv(pose), spatial_jacobian(twists, theta))
 
 
 def spatial_velocity(twists, theta, theta_dot):
@@ -92,8 +95,7 @@ def spatial_velocity(twists, theta, theta_dot):
         NumPy array with shape ``(6,)`` containing the spatial velocity.
     """
 
-    # TODO
-    return ...
+    return np.matmul(spatial_jacobian(twists, theta), theta_dot)
 
 
 def body_velocity(twists, theta, theta_dot, g_st0):
@@ -112,8 +114,7 @@ def body_velocity(twists, theta, theta_dot, g_st0):
         NumPy array with shape ``(6,)`` containing the body velocity.
     """
 
-    # TODO
-    return ...
+    return np.matmul(body_jacobian(twists, theta, g_st0), theta_dot)
 
 
 def spatial_configuration_error(pose, desired_pose):
@@ -128,8 +129,7 @@ def spatial_configuration_error(pose, desired_pose):
         NumPy array with shape ``(4, 4)`` containing our error.
     """
 
-    # TODO
-    return ...
+    return np.matmul(desired_pose, inverse_SE3(pose))
 
 
 def spatial_error_twist(error):
@@ -145,8 +145,7 @@ def spatial_error_twist(error):
     Use ``scipy.linalg.logm`` for the matrix logarithm.
     """
 
-    # TODO
-    return ...
+    return se3_to_twist(np.real_if_close(logm(error)))
 
 
 def jacobian_inverse_kinematics(
